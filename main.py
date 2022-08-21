@@ -1,8 +1,10 @@
 from tkinter import *
 from tkinter import filedialog
-import os
-import threading 
+from threading import Thread
 from pytube import YouTube
+
+
+urls = []
 
 
 def select_download_path():
@@ -10,36 +12,44 @@ def select_download_path():
     path_label.config(text=path)
 
 
-def add_url_to_file():
-
-    if os.path.exists("youtube_urls.txt"):
-
-        with open("youtube_urls.txt", "a") as file:
-            file.write(url_field.get(1.0, END))
-
-    else:
-        with open("youtube_urls.txt", "w") as file:
-            file.write(url_field.get(1.0, END))
-
+def remove_url_label_contents():
     url_field.delete(1.0, END)
 
 
-def remove_file_contents():
-    with open("youtube_urls.txt", "w") as file:
-        file.truncate()
+def add_url_to_file():
+
+    urls.append(url_field.get(1.0, END))
+    remove_url_label_contents()
 
 
-def download():
-    with open("youtube_urls.txt", "r") as file:
-        for url in file:
-            yt = YouTube(url)
-            audio = yt.streams.filter(only_audio=True).desc()
-            audio[0].download(
-                filename=f"{yt.title}.mp3", output_path=path_label.cget("text"))
+def remove_file_contents(urls):
+    urls *= 0
+    remove_url_label_contents()
+
+
+def download(url, index):
+    print("started:", url)
+
+    yt = YouTube(url)
+    audio = yt.streams.filter(only_audio=True).desc()
+    audio[0].download(
+        filename=f"{index}.mp3", output_path=path_label.cget("text") + "/yt_downloader/")
+    print("finished:", index)
+
+
+def download_urls_thread():
+    threads = [Thread(target=download, args=(url, index))
+               for index, url in enumerate(urls)]
+
+    for thread in threads:
+        thread.start()
+
+    for thread in threads:
+        thread.join()
 
 
 def start_download_thread():
-    threading.Thread(target=download).start()
+    Thread(target=download_urls_thread).start()
 
 
 ui = Tk()
@@ -51,7 +61,8 @@ url_field = Text(ui, height=1, width=50)
 
 add_url = Button(ui, text="Add", command=add_url_to_file)
 
-remove_urls = Button(ui, text="Remove all urls", command=remove_file_contents)
+remove_urls = Button(ui, text="Remove all urls",
+                     command=lambda: remove_file_contents(urls),)
 
 download_urls = Button(ui, text="Download", command=start_download_thread)
 
